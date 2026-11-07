@@ -1,0 +1,445 @@
+{
+  "n_raw": 9564,
+  "class_counts_raw": {
+    "FALSE POSITIVE": 4839,
+    "CONFIRMED": 2748,
+    "CANDIDATE": 1977
+  },
+  "n_binary": 7587,
+  "n_train": 6069,
+  "n_test": 1518,
+  "test_counts": {
+    "confirmed": 550,
+    "false_positive": 968
+  },
+  "dropped_cols": [
+    "kepid",
+    "kepler_name",
+    "kepoi_name",
+    "koi_depth_err1",
+    "koi_depth_err2",
+    "koi_disposition",
+    "koi_duration_err1",
+    "koi_duration_err2",
+    "koi_fpflag_co",
+    "koi_fpflag_ec",
+    "koi_fpflag_nt",
+    "koi_fpflag_ss",
+    "koi_impact_err1",
+    "koi_impact_err2",
+    "koi_insol_err1",
+    "koi_insol_err2",
+    "koi_pdisposition",
+    "koi_period_err1",
+    "koi_period_err2",
+    "koi_prad_err1",
+    "koi_prad_err2",
+    "koi_score",
+    "koi_slogg_err1",
+    "koi_slogg_err2",
+    "koi_srad_err1",
+    "koi_srad_err2",
+    "koi_steff_err1",
+    "koi_steff_err2",
+    "koi_teq_err1",
+    "koi_teq_err2",
+    "koi_time0bk_err1",
+    "koi_time0bk_err2",
+    "rowid"
+  ],
+  "n_err_cols_dropped": 22,
+  "n_numeric": 16,
+  "n_categorical": 1,
+  "numeric_cols": [
+    "koi_period",
+    "koi_time0bk",
+    "koi_impact",
+    "koi_duration",
+    "koi_depth",
+    "koi_prad",
+    "koi_teq",
+    "koi_insol",
+    "koi_model_snr",
+    "koi_tce_plnt_num",
+    "koi_steff",
+    "koi_slogg",
+    "koi_srad",
+    "ra",
+    "dec",
+    "koi_kepmag"
+  ],
+  "n_features_selected": 19,
+  "steff_err1_median_by_class": {
+    "CONFIRMED": 108.0,
+    "FALSE POSITIVE": 165.0
+  },
+  "cv_table": {
+    "LightGBM": {
+      "mean": 0.9803,
+      "std": 0.0029
+    },
+    "XGBoost": {
+      "mean": 0.9801,
+      "std": 0.0033
+    },
+    "HistGradientBoosting": {
+      "mean": 0.9794,
+      "std": 0.0035
+    },
+    "RandomForest": {
+      "mean": 0.9757,
+      "std": 0.0038
+    },
+    "LogisticRegression": {
+      "mean": 0.9303,
+      "std": 0.0046
+    }
+  },
+  "best_model": "LightGBM",
+  "best_params": {
+    "model__learning_rate": 0.03,
+    "model__n_estimators": 400,
+    "model__num_leaves": 63,
+    "model__subsample": 0.8,
+    "select__k": "all"
+  },
+  "best_cv_xgb": 0.9813,
+  "best_params_xgb": {
+    "model__learning_rate": 0.1,
+    "model__max_depth": 6,
+    "model__n_estimators": 400,
+    "model__subsample": 0.8,
+    "select__k": "all"
+  },
+  "best_cv_lgbm": 0.9816,
+  "best_params_lgbm": {
+    "model__learning_rate": 0.03,
+    "model__n_estimators": 400,
+    "model__num_leaves": 63,
+    "model__subsample": 0.8,
+    "select__k": "all"
+  },
+  "test_metrics_ci": {
+    "roc_auc": [
+      0.9792,
+      0.9729,
+      0.9849
+    ],
+    "pr_auc": [
+      0.9596,
+      0.9452,
+      0.9724
+    ],
+    "balanced_accuracy": [
+      0.929,
+      0.9152,
+      0.942
+    ],
+    "accuracy": [
+      0.9315,
+      0.9183,
+      0.944
+    ],
+    "precision_confirmed": [
+      0.894,
+      0.8644,
+      0.9198
+    ],
+    "recall_confirmed": [
+      0.92,
+      0.8977,
+      0.9416
+    ],
+    "f1_confirmed": [
+      0.9068,
+      0.887,
+      0.9242
+    ],
+    "specificity": [
+      0.938,
+      0.922,
+      0.9525
+    ]
+  },
+  "pr_baseline": 0.3623,
+  "confusion": {
+    "tp": 506,
+    "fn": 44,
+    "fp": 60,
+    "tn": 908
+  },
+  "test_auc_xgb": 0.9796,
+  "test_auc_lgbm": 0.9792,
+  "diff_lgbm_minus_xgb": [
+    -0.0004,
+    -0.0019,
+    0.0012
+  ],
+  "feature_importance_top12": [
+    {
+      "feature": "koi_prad",
+      "importance": 0.2021
+    },
+    {
+      "feature": "koi_model_snr",
+      "importance": 0.1326
+    },
+    {
+      "feature": "koi_period",
+      "importance": 0.119
+    },
+    {
+      "feature": "koi_duration",
+      "importance": 0.0842
+    },
+    {
+      "feature": "koi_impact",
+      "importance": 0.0819
+    },
+    {
+      "feature": "koi_depth",
+      "importance": 0.0552
+    },
+    {
+      "feature": "koi_insol",
+      "importance": 0.0483
+    },
+    {
+      "feature": "koi_tce_delivname_q1_q17_dr25_tce",
+      "importance": 0.0416
+    },
+    {
+      "feature": "koi_steff",
+      "importance": 0.0364
+    },
+    {
+      "feature": "koi_teq",
+      "importance": 0.0309
+    },
+    {
+      "feature": "koi_slogg",
+      "importance": 0.0277
+    },
+    {
+      "feature": "koi_srad",
+      "importance": 0.0272
+    }
+  ],
+  "with_err": {
+    "n_err_cols": 20,
+    "metrics_ci": {
+      "roc_auc": [
+        0.987,
+        0.9825,
+        0.991
+      ],
+      "pr_auc": [
+        0.9767,
+        0.9673,
+        0.9843
+      ],
+      "balanced_accuracy": [
+        0.941,
+        0.9278,
+        0.953
+      ],
+      "accuracy": [
+        0.9453,
+        0.9341,
+        0.9565
+      ],
+      "precision_confirmed": [
+        0.9238,
+        0.9004,
+        0.9458
+      ],
+      "recall_confirmed": [
+        0.9255,
+        0.9034,
+        0.9455
+      ],
+      "f1_confirmed": [
+        0.9246,
+        0.9071,
+        0.94
+      ],
+      "specificity": [
+        0.9566,
+        0.9426,
+        0.9689
+      ]
+    },
+    "diff_with_minus_without": [
+      0.0078,
+      0.0045,
+      0.0113
+    ],
+    "importance_top10": [
+      {
+        "feature": "koi_steff_err1",
+        "importance": 0.1771
+      },
+      {
+        "feature": "koi_prad",
+        "importance": 0.152
+      },
+      {
+        "feature": "koi_period",
+        "importance": 0.069
+      },
+      {
+        "feature": "koi_steff_err2",
+        "importance": 0.0661
+      },
+      {
+        "feature": "koi_duration_err1",
+        "importance": 0.0599
+      },
+      {
+        "feature": "koi_duration_err2",
+        "importance": 0.0491
+      },
+      {
+        "feature": "koi_model_snr",
+        "importance": 0.0365
+      },
+      {
+        "feature": "koi_duration",
+        "importance": 0.0321
+      },
+      {
+        "feature": "koi_prad_err2",
+        "importance": 0.0302
+      },
+      {
+        "feature": "koi_impact",
+        "importance": 0.0263
+      }
+    ]
+  },
+  "leakage": {
+    "auc_with_vetting": 0.99998,
+    "auc_koi_score_only": 0.9811
+  },
+  "error_table": [
+    {
+      "group": "TP (planeta detectado)",
+      "n": 506,
+      "koi_period": 12.001,
+      "koi_depth": 511.15,
+      "koi_prad": 2.21,
+      "koi_model_snr": 31.6,
+      "koi_kepmag": 14.604,
+      "p_conf": 0.996
+    },
+    {
+      "group": "FN (planeta perdido)",
+      "n": 44,
+      "koi_period": 6.567,
+      "koi_depth": 290.35,
+      "koi_prad": 1.67,
+      "koi_model_snr": 21.25,
+      "koi_kepmag": 14.482,
+      "p_conf": 0.159
+    },
+    {
+      "group": "FP (falsa alarma)",
+      "n": 60,
+      "koi_period": 8.48,
+      "koi_depth": 336.3,
+      "koi_prad": 1.75,
+      "koi_model_snr": 19.65,
+      "koi_kepmag": 14.589,
+      "p_conf": 0.892
+    },
+    {
+      "group": "TN (FP descartado)",
+      "n": 908,
+      "koi_period": 4.637,
+      "koi_depth": 641.1,
+      "koi_prad": 16.37,
+      "koi_model_snr": 37.7,
+      "koi_kepmag": 14.288,
+      "p_conf": 0.0
+    }
+  ],
+  "recall_by_kp": [
+    {
+      "kp_bin": "Kp<13",
+      "n_planetas": 76.0,
+      "recall": 0.921
+    },
+    {
+      "kp_bin": "13-14",
+      "n_planetas": 112.0,
+      "recall": 0.911
+    },
+    {
+      "kp_bin": "14-15",
+      "n_planetas": 166.0,
+      "recall": 0.934
+    },
+    {
+      "kp_bin": "Kp>15",
+      "n_planetas": 196.0,
+      "recall": 0.913
+    }
+  ],
+  "recall_by_snr": [
+    {
+      "snr_bin": "<10",
+      "n_planetas": 9.0,
+      "recall": 0.444
+    },
+    {
+      "snr_bin": "10-20",
+      "n_planetas": 142.0,
+      "recall": 0.887
+    },
+    {
+      "snr_bin": "20-50",
+      "n_planetas": 257.0,
+      "recall": 0.949
+    },
+    {
+      "snr_bin": ">50",
+      "n_planetas": 142.0,
+      "recall": 0.93
+    }
+  ],
+  "learning_curve": {
+    "train_final": 1.0,
+    "val_final": 0.9818,
+    "gap": 0.0182
+  },
+  "threshold_oof": {
+    "thr": 0.3092,
+    "oof_recall": 0.9504,
+    "oof_precision": 0.8744,
+    "oof_flag_rate": 0.3936,
+    "oof_auc": 0.9814
+  },
+  "operational_test_ci": {
+    "recall": [
+      0.94,
+      0.9193,
+      0.9594
+    ],
+    "precision": [
+      0.8674,
+      0.8383,
+      0.8931
+    ],
+    "flag_rate": [
+      0.3926,
+      0.3689,
+      0.4177
+    ]
+  },
+  "candidates": {
+    "n": 1977,
+    "p090": 387,
+    "p098": 200,
+    "over_thr": 747
+  }
+}
