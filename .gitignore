@@ -1,0 +1,6 @@
+*.aux
+*.log
+*.out
+*.pkl
+.ipynb_checkpoints/
+__pycache__/

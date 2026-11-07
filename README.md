@@ -1,95 +1,58 @@
 # Actividad Sumativa - Unidad 4: Inteligencia Artificial
 ## Clasificación Automatizada de Exoplanetas Kepler
 
-### 📁 Entregables Generados
+### 📁 Entregables
 
 | Archivo | Descripción |
 |---------|-------------|
-| `exoplanet_classification.ipynb` | **Notebook Jupyter completo** con pipeline ML end-to-end (30+ celdas, 30KB) |
-| `informe_tecnico.pdf` | **Informe técnico 7 páginas** (4-6 pág. requeridas) en formato PDF |
-| `informe_tecnico.tex` | Fuente LaTeX del informe (compilable, 17KB) |
-| `download_dataset.py` | Script para descargar dataset de Kaggle |
+| `exoplanet_classification.ipynb` | Notebook completo **ejecutado** (con salidas): pipeline de ML de principio a fin |
+| `informe_tecnico.pdf` | Informe técnico (6 páginas) |
+| `informe_tecnico.tex` | Fuente LaTeX del informe |
+| `figures/` | Figuras generadas por el notebook y usadas en el informe |
+| `results.json` | Todas las métricas generadas por el notebook (cada cifra del informe sale de aquí) |
+| `cumulative.csv` | Tabla Kepler KOI *cumulative* (NASA Exoplanet Archive, 9,564 KOIs, 50 columnas) |
+| `download_dataset.py` | Descarga alternativa desde Kaggle |
 
 ---
 
-### 🚀 Ejecución Rápida
+### 🚀 Ejecución
 
-#### 1. Instalar dependencias
 ```bash
-pip install numpy pandas matplotlib seaborn scikit-learn xgboost lightgbm joblib kaggle
-```
-
-#### 2. Descargar dataset (opción A: script)
-```bash
-# Requiere kaggle.json en ~/.kaggle/ (ver https://www.kaggle.com/settings/account)
-python download_dataset.py
-```
-
-#### 2. Descargar dataset (opción B: manual)
-1. Ir a: https://www.kaggle.com/datasets/nasa/kepler-exoplanet-search-results
-2. Click **Download** → `cumulative.csv`
-3. Colocar en esta carpeta
-
-#### 3. Ejecutar notebook
-```bash
+pip install numpy pandas matplotlib seaborn scikit-learn xgboost lightgbm joblib
 jupyter notebook exoplanet_classification.ipynb
-# O subir a Google Colab / VS Code
 ```
 
----
+El notebook usa `cumulative.csv` si está en la carpeta. Si no lo encuentra, lo descarga automáticamente de la API TAP pública del NASA Exoplanet Archive (no requiere credenciales). La semilla está fijada en 42 y la ejecución completa tarda unos 2 minutos en CPU.
 
-### 📊 Resumen de Resultados
-
-| Métrica | Valor | Interpretación |
-|---------|-------|----------------|
-| **ROC-AUC (Test)** | **0.967** | Excelente separación |
-| **PR-AUC (Test)** | **0.931** | Alta precisión en clase minoritaria |
-| **Balanced Accuracy** | **0.902** | Robusto a desbalance 1:2.2 |
-| **Recall (CONFIRMED)** | **0.873** | Recupera 87% planetas reales |
-| **Precision (CONFIRMED)** | **0.891** | 89% de predichos son reales |
-
-**Mejor modelo**: XGBoost optimizado (400 árboles, depth=6, lr=0.03) via GridSearchCV 5-fold.
-
-**Features dominantes**: `koi_score` (0.34), `koi_depth` (0.19), `koi_period` (0.12), `koi_duration` (0.10) — alineadas con física de tránsitos.
+Para compilar el informe: `pdflatex informe_tecnico.tex` (dos pasadas).
 
 ---
 
-### 🎯 Cumplimiento de Rúbrica
+### 📊 Resultados (test hold-out, n = 1,518; IC 95 % por bootstrap con 1,000 remuestreos)
 
-| Criterio | Cobertura |
-|----------|-----------|
-| **Formulación del problema** | ✅ Problema real (validación Kepler), justificado, contextualizado con datos actuales |
-| **Selección y justificación de algoritmos** | ✅ 5 modelos comparados, XGBoost elegido con justificación técnica y CV |
-| **Implementación técnica** | ✅ Pipeline completo (preproc, selección, modelo), código modular, comentado, reproducible |
-| **Evaluación y análisis crítico** | ✅ Métricas apropiadas (ROC-AUC, PR-AUC, Balanced Acc), matriz confusión, curvas ROC/PR, feature importance, análisis errores, sesgos, learning curves |
-| **Calidad del informe técnico** | ✅ 7 páginas PDF, estructura completa (contexto, metodología, desarrollo, resultados, conclusiones), redacción técnica precisa |
+| Métrica | Valor | IC 95 % |
+|---------|-------|---------|
+| **ROC-AUC** | **0.979** | [0.973, 0.985] |
+| **PR-AUC** (baseline 0.362) | **0.960** | [0.945, 0.972] |
+| Balanced accuracy | 0.929 | [0.915, 0.942] |
+| Precision (CONFIRMED) | 0.894 | [0.864, 0.920] |
+| Recall (CONFIRMED) | 0.920 | [0.898, 0.942] |
+| F1 (CONFIRMED) | 0.907 | [0.887, 0.924] |
 
----
+**Modelo final**: LightGBM (400 árboles, `num_leaves=63`, `learning_rate=0.03`, `subsample=0.8`) sobre 16 variables físicas + 1 categórica, elegido con GridSearchCV y validación cruzada estratificada de 5 *folds*. La diferencia con XGBoost no es significativa: −0.0004 de AUC, IC 95 % [−0.002, +0.001].
 
-### 🔬 Detalles Técnicos Destacados
-
-1. **Control de leakage**: Eliminadas `koi_score`, `koi_fpflag_*`, IDs — validado que modelo aprende proxies físicos
-2. **Desbalance de clases**: `class_weight='balanced'` + métricas robustas (Balanced Acc, PR-AUC)
-3. **Validación rigurosa**: Hold-out 20% estratificado **nunca tocado** hasta evaluación final + CV 5-fold estratificado
-4. **Interpretabilidad física**: Top features coinciden con teoría (profundidad ∝ (Rp/R*)², duración ∝ P¹ᐟ³)
-5. **Predicción operacional**: Clasifica 2,012 candidatos CANDIDATE → top 50 listos para seguimiento espectroscópico
-6. **Limitaciones documentadas**: Sesgo por magnitud, generalización K2/TESS, leakage residual, clase CANDIDATE excluida
+**Variables dominantes**: radio planetario, SNR del tránsito, período, duración y parámetro de impacto.
 
 ---
 
-### 📈 Impacto Real
+### 🔬 Decisiones metodológicas clave
 
-> **Reducción estimada 80% tiempo de telescopio** para validación de candidatos, acelerando descubrimiento de exoplanetas en zona de habitabilidad.
-
----
-
-### 📝 Notas para el Tutor
-
-- El notebook es **auto-contenido y ejecutable** (semilla 42 fija para reproducibilidad)
-- El PDF se compila con `pdflatex` (incluido en MiKTeX/TeX Live) — 2 pasadas resuelven referencias
-- Dataset: NASA Exoplanet Archive / Kaggle (CC0 Public Domain)
-- Código listo para deploy: `joblib.dump(pipeline, 'exoplanet_classifier_pipeline.pkl')`
+1. **Leakage explícito**: se excluyen `koi_score`, `koi_pdisposition` y `koi_fpflag_*`. Con ellas el AUC llega a 1.000 porque reproducen la decisión del catálogo.
+2. **Leakage sutil**: se excluyen las columnas de incertidumbre `*_err`, porque se refinan tras la confirmación (mediana de `koi_steff_err1`: 108 K en confirmados frente a 165 K en falsos positivos). Incluirlas sube el AUC en +0.008 (IC 95 % [+0.005, +0.011]) por información del seguimiento, no por la física.
+3. **Test intocado**: el algoritmo, los hiperparámetros y el umbral de decisión se eligen solo con validación cruzada sobre el entrenamiento. El umbral operativo (P ≥ 0.309) se fija con predicciones *out-of-fold*.
+4. **Uso operativo**: en test, ese umbral recupera el **94.0 %** de los planetas observando solo el **39.3 %** de los KOIs, un **ahorro aproximado del 61 %** de tiempo de telescopio.
+5. **Sesgos documentados**: los errores se concentran en tránsitos de baja SNR y planetas pequeños (la magnitud estelar casi no influye), además del sesgo de selección en las etiquetas y un ligero sobreajuste.
 
 ---
 
-**Desarrollado con rigor científico y mejor prácticas ML** para la Actividad Sumativa Unidad 4 — Maestría IA, Politécnico Gran Colombiano.
+Dataset: NASA Exoplanet Archive, Kepler Objects of Interest (cumulative), consultado el 7 de noviembre de 2026.

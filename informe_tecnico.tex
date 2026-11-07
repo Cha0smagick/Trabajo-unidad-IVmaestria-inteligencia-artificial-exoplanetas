@@ -1,298 +1,244 @@
-\documentclass[11pt,a4paper,spanish]{article}
+\documentclass[11pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[spanish]{babel}
-\usepackage{geometry}
-\geometry{margin=2.5cm}
+\usepackage{lmodern}
+\usepackage[spanish,es-nodecimaldot,es-tabla]{babel}
+\usepackage[margin=2.2cm,top=2cm,bottom=2.2cm]{geometry}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
 \usepackage{float}
-\usepackage{hyperref}
 \usepackage{xcolor}
-\usepackage{listings}
 \usepackage{caption}
-\usepackage{enumitem}
+\usepackage[inline]{enumitem}
 \usepackage{titlesec}
-\usepackage{multirow}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{xurl}
+\setlength{\emergencystretch}{3em}
 
-\hypersetup{
-    colorlinks=true,
-    linkcolor=blue!70!black,
-    citecolor=blue!70!black,
-    urlcolor=blue!70!black
-}
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, citecolor=blue!60!black, urlcolor=blue!60!black}
+\titleformat{\section}{\large\bfseries\color{blue!60!black}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{blue!45!black}}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.0ex plus .3ex}{0.5ex}
+\titlespacing*{\subsection}{0pt}{0.8ex plus .2ex}{0.3ex}
+\setlist{itemsep=1pt, topsep=2pt, parsep=0pt}
+\captionsetup{font=small, labelfont=bf, skip=3pt}
+\setlength{\parskip}{2pt}
+\setlength{\textfloatsep}{8pt}
+\setlength{\floatsep}{6pt}
+\graphicspath{{figures/}}
+\newcommand{\ci}[2]{{\footnotesize[#1,\,#2]}}
 
-\titleformat{\section}{\large\bfseries\color{blue!70!black}}{}{0em}{}
-\titleformat{\subsection}{\normalsize\bfseries\color{blue!50!black}}{}{0em}{}
-
-\title{
-    \vspace{-1cm}
-    \textbf{Clasificación Automatizada de Exoplanetas Kepler:\\ Priorización de Candidatos para Validación Espectroscópica}\\
-    \large Actividad Sumativa — Unidad 4: Inteligencia Artificial
-}
-\author{
-    Maestría en Inteligencia Artificial\\
-    Politécnico Gran Colombiano — II Semestre 2026
-}
-\date{\today}
+\title{\vspace{-1.2cm}\textbf{Clasificación Automatizada de Exoplanetas Kepler:\\Priorización de Candidatos para Validación Espectroscópica}\\[2pt]
+\large Actividad Sumativa — Unidad 4: Inteligencia Artificial}
+\author{Maestría en Inteligencia Artificial — Politécnico Grancolombiano}
+\date{Noviembre de 2026}
 
 \begin{document}
 \maketitle
-\thispagestyle{empty}
+\vspace{-0.6cm}
 
 \begin{abstract}
-El telescopio Kepler generó $\sim$9,500 objetos de interés (KOIs), de los cuales solo $\sim$2,300 son planetas confirmados. La validación mediante seguimiento espectroscópico en tierra consume semanas de tiempo de observatorio por candidato. Este trabajo presenta un pipeline de \textit{machine learning} supervisado que discrimina \texttt{CONFIRMED} vs \texttt{FALSE POSITIVE} a partir de 50+ características fotométricas y orbitales, alcanzando \textbf{ROC-AUC = 0.967} en test hold-out. El modelo (XGBoost optimizado) identifica \texttt{koi\_score}, profundidad de tránsito, período orbital y temperatura estelar como predictores dominantes. Se analizan sesgos por magnitud estelar, \textit{data leakage} controlado, y limitaciones en generalización a misión TESS. El clasificador permite reducir $\sim$80\% el tiempo de telescopio para validación, acelerando el descubrimiento de mundos habitables.
+\noindent La misión Kepler catalogó 9,564 objetos de interés (KOIs): 2,748 confirmados como planetas, 4,839 falsos positivos y 1,977 que siguen como candidatos. Confirmar un candidato exige tiempo escaso de telescopios terrestres. Se presenta un pipeline de aprendizaje supervisado que estima la probabilidad de que un KOI sea un planeta real a partir de 16 parámetros físicos de la señal, del planeta y de la estrella. Se excluyeron las variables del proceso de \textit{vetting} y las barras de error, porque ambas filtran información de la etiqueta. Algoritmo, hiperparámetros y umbral de decisión se eligieron solo con validación cruzada sobre el conjunto de entrenamiento. El modelo final (LightGBM) alcanza en test \textbf{ROC-AUC = 0.979} [0.973, 0.985] y F1 = 0.907 [0.887, 0.924] (IC 95\,\% por \textit{bootstrap}). Con el umbral operativo recupera el 94\,\% de los planetas observando solo el 39\,\% de los KOIs, un ahorro de alrededor del 61\,\% de tiempo de telescopio.
 \end{abstract}
 
-\vspace{0.5cm}
-\noindent\textbf{Palabras clave:} aprendizaje supervisado, clasificación binaria, exoplanetas, Kepler, XGBoost, validación cruzada, interpretabilidad.
+\noindent\textbf{Palabras clave:} aprendizaje supervisado, clasificación binaria, exoplanetas, Kepler, \textit{gradient boosting}, \textit{data leakage}.
 
-\section{Contexto del Problema y Justificación}
+%=====================================================================
+\section{Contexto del problema y justificación}
+La misión \textbf{Kepler} de la NASA (2009--2018) buscó exoplanetas con fotometría de tránsito: caídas periódicas del brillo estelar ($\Delta F/F\sim10^{-5}$--$10^{-2}$) cuando un planeta pasa frente a su estrella \cite{borucki2010}. Cada señal periódica se registra como un KOI. Muchas señales no son planetas, sino \textbf{falsos positivos}: binarias eclipsantes, contaminación de una estrella vecina o artefactos instrumentales. Distinguirlos exige seguimiento con espectroscopía de velocidad radial o imagen de alta resolución en telescopios de 8--10\,m, cuyo tiempo es muy limitado. Hoy quedan casi 2,000 KOIs sin resolver, y el problema es aún más urgente en misiones actuales como TESS, que generan miles de candidatos nuevos.
 
-Desde su lanzamiento en 2009, la misión \textbf{Kepler} (NASA) revolucionó la astronomía al detectar miles de candidatos a exoplanetas mediante fotometría de tránsito: diminutas caídas periódicas en el brillo estelar ($\Delta F/F \sim 10^{-4}$--$10^{-3}$) cuando un planeta cruza frente a su estrella anfitriona \cite{borucki2010}. Al finalizar la misión principal (2018), el catálogo acumulaba $\sim$9,564 KOIs (\textit{Kepler Objects of Interest}), pero solo $\sim$2,300 habían sido confirmados como planetas genuinos mediante seguimiento espectroscópico de velocidad radial o imagen directa.
+\textbf{¿Por qué aprendizaje automático?}
+\begin{enumerate*}[label=(\roman*)]
+\item Hay miles de ejemplos con etiqueta experta (\texttt{koi\_disposition}) obtenida tras el seguimiento, lo que permite un enfoque supervisado.
+\item Las variables son heterogéneas, no lineales y con valores faltantes, y su relación con la clase es difícil de codificar con reglas manuales.
+\item Los costos de error son asimétricos: perder un planeta real (falso negativo) es más grave que gastar una noche en un falso positivo.
+\end{enumerate*}
+El objetivo no es reemplazar la confirmación observacional, sino \textbf{ordenar la cola de observación} por probabilidad de éxito.
 
-\textbf{El cuello de botella real}: Confirmar un candidato requiere noches de telescopio en observatorios de 8--10 m (Keck, VLT, Subaru). Con miles de candidatos, la validación ciega es inviable. La comunidad astronómica necesita \textbf{priorización automática} basada en la probabilidad de que un KOI sea un planeta real vs un falso positivo (binarias eclipsantes de fondo, variabilidad estelar, artefactos instrumentales).
+%=====================================================================
+\section{Análisis del problema y del dataset}
+\textbf{Tipo de problema:} clasificación binaria supervisada, con $y=1$ para \texttt{CONFIRMED} (clase positiva, planeta real) e $y=0$ para \texttt{FALSE POSITIVE}. Es supervisado porque existe una etiqueta experta. La clase \texttt{CANDIDATE} no tiene etiqueta definitiva, así que se excluye del entrenamiento y se usa después para predicción operativa.
 
-\textbf{Por qué \textit{machine learning} es la herramienta idónea}:
-\begin{enumerate}
-    \item \textbf{Volumen y dimensionalidad}: 9,564 muestras $\times$ 50+ características heterogéneas (continuas, categóricas, con nulos).
-    \item \textbf{Etiquetas confiables}: El catálogo NASA Exoplanet Archive proporciona \texttt{koi\_disposition} validado por expertos (CONFIRMED, FALSE POSITIVE, CANDIDATE).
-    \item \textbf{Coste de error asimétrico}: Perder un planeta real (falso negativo) es más costoso que observar un falso positivo (falso positivo). Métricas como \textit{recall} y \textit{PR-AUC} son críticas.
-    \item \textbf{Interpretabilidad física}: Las features importantes deben alinearse con teoría de tránsitos (profundidad $\propto (R_p/R_*)^2$, duración $\propto P^{1/3}$).
-\end{enumerate}
+\textbf{Datos:} tabla \textit{Kepler Objects of Interest — cumulative} del NASA Exoplanet Archive \cite{nasa}, descargada vía su API TAP pública. Tiene las mismas 50 columnas que el dataset de Kaggle \texttt{nasa/kepler-exoplanet-search-results}.
 
-\section{Análisis del Problema y Dataset}
-
-\subsection{Definición Formal}
-\textbf{Tipo}: Clasificación binaria supervisada. \\
-\textbf{Variable objetivo}: $y \in \{0,1\}$ donde $0 = \texttt{CONFIRMED}$, $1 = \texttt{FALSE POSITIVE}$. \\
-\textbf{Exclusión}: La clase \texttt{CANDIDATE} (etiqueta intermedia, $n=2,012$) se reserva para predicción \textit{post-hoc}, no para entrenamiento.
-
-\subsection{Estructura del Dataset}
 \begin{table}[H]
-\centering
-\caption{Resumen del dataset \texttt{cumulative.csv} (NASA Exoplanet Archive)}
-\begin{tabular}{lr}
+\centering\small
+\caption{Estructura del dataset}
+\setlength{\tabcolsep}{4pt}\begin{tabular}{lr@{\hspace{0.8cm}}lr}
 \toprule
-\textbf{Atributo} & \textbf{Valor} \\
-\midrule
-Muestras totales (raw) & 9,564 \\
-Muestras binarias (train+test) & 7,552 \\
-\quad CONFIRMED (clase 0) & 2,367 (31.3\%) \\
-\quad FALSE POSITIVE (clase 1) & 5,185 (68.7\%) \\
-Features originales & 50 \\
-Features tras limpieza & 32 (numéricas) + 0 (categóricas) \\
-Desbalance de clases & 1 : 2.2 \\
+KOIs totales & 9,564 & Columnas originales & 50 \\
+CONFIRMED ($y{=}1$) & 2,748 (36.2\,\%) & Eliminadas (IDs, etiqueta, leakage, \texttt{\_err}) & 33 \\
+FALSE POSITIVE ($y{=}0$) & 4,839 (63.8\,\%) & Predictoras numéricas / categóricas & 16 / 1 \\
+CANDIDATE (sin etiqueta) & 1,977 & Train / test (estratificado 80/20) & 6,069 / 1,518 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Variables Clave (Subconjunto Físico)}
-\begin{itemize}
-    \item \texttt{koi\_period}: Período orbital (días) — ley de Kepler III.
-    \item \texttt{koi\_depth}: Profundidad de tránsito (ppm) — $\propto (R_p/R_*)^2$.
-    \item \texttt{koi\_duration}: Duración de tránsito (horas) — geometría orbital.
-    \item \texttt{koi\_prad}, \texttt{koi\_srad}: Radio planetario/estelar ($R_\oplus$, $R_\odot$).
-    \item \texttt{koi\_steff}, \texttt{koi\_slogg}: Temperatura efectiva y gravedad superficial estelar.
-    \item \texttt{koi\_score}: Score de confianza 0--1 de la pipeline oficial Kepler (proxy experto).
-    \item \texttt{koi\_fpflag\_*}: Banderas de falso positivo (NT, SS, CO, EC) — \textbf{excluidas por \textit{leakage}}.
-\end{itemize}
+\vspace{-2pt}
+Las predictoras describen la \textbf{señal de tránsito} (\texttt{koi\_period}, \texttt{koi\_depth}, \texttt{koi\_duration}, \texttt{koi\_impact}, \texttt{koi\_model\_snr}), el \textbf{planeta inferido} (\texttt{koi\_prad}, \texttt{koi\_teq}, \texttt{koi\_insol}) y la \textbf{estrella} (\texttt{koi\_steff}, \texttt{koi\_slogg}, \texttt{koi\_srad}, \texttt{koi\_kepmag}, coordenadas). La única categórica es \texttt{koi\_tce\_delivname}, la versión del pipeline de detección. Las clases están moderadamente desbalanceadas (1\,:\,1.76).
 
-\section{Enfoque Metodológico}
-
-\subsection{Preprocesamiento y \textit{Feature Engineering}}
+%=====================================================================
+\section{Enfoque metodológico}
+\subsection{Preparación de datos y control de \textit{leakage}}
 \begin{enumerate}
-    \item \textbf{Filtrado de clases}: Solo CONFIRMED + FALSE POSITIVE ($n=7,552$).
-    \item \textbf{Eliminación de \textit{leakage}}: \texttt{koi\_score}, \texttt{koi\_fpflag\_*}, IDs (\texttt{rowid, kepid, kepoi\_name, kepler\_name}).
-    \item \textbf{Columnas con $>50\%$ nulos}: Eliminadas (12 columnas).
-    \item \textbf{Imputación}: Mediana para numéricas (robusta a outliers).
-    \item \textbf{Escalado}: \texttt{StandardScaler} (requerido para regresión logística, SVM; neutro para árboles).
-    \item \textbf{Selección de features}: \texttt{SelectKBest} con \textit{Mutual Information} ($k=25$ óptimo via CV).
+\item \textbf{Leakage explícito:} se eliminan \texttt{koi\_pdisposition}, \texttt{koi\_score} y las banderas \texttt{koi\_fpflag\_\{nt,ss,co,ec\}}. Son salidas del proceso de vetting de Kepler \cite{thompson2018}, que usa la misma evidencia que define la etiqueta.
+\item \textbf{Leakage sutil (barras de error):} se eliminan las 22 columnas \texttt{*\_err1/2}. Cuando un KOI se confirma, sus parámetros, sobre todo los estelares, suelen refinarse con observaciones de seguimiento, y eso reduce sus incertidumbres. La mediana de \texttt{koi\_steff\_err1} es 108\,K en los confirmados frente a 165\,K en los falsos positivos. Las barras de error reflejan, por tanto, el \textit{proceso de confirmación} y no la física de la señal, y un candidato nuevo todavía no las tiene refinadas. Su efecto se cuantifica en la Sección~5.3.
+\item También se eliminan los identificadores (\texttt{rowid}, \texttt{kepid}, \texttt{kepoi\_name}, \texttt{kepler\_name}).
+\item \textbf{Variables numéricas:} imputación por mediana, robusta a las colas largas de período y profundidad, y \texttt{StandardScaler}, necesario para la regresión logística e inocuo para los árboles. \textbf{Variable categórica:} imputación por moda y \textit{one-hot encoding}. \textbf{Selección de variables:} \texttt{SelectKBest} con información mutua, tratando $k\in\{10,15,\text{todas}\}$ como hiperparámetro.
 \end{enumerate}
 
-\subsection{División de Datos}
-\begin{itemize}
-    \item \textbf{Test hold-out}: 20\% estratificado ($n=1,511$), \textbf{nunca tocado} hasta evaluación final.
-    \item \textbf{Validación cruzada}: \texttt{StratifiedKFold(5)} en train ($n=6,041$) para selección de modelo e hiperparámetros.
-\end{itemize}
+\textbf{Protocolo de evaluación.} Todo el preprocesamiento va dentro de un \texttt{Pipeline} de scikit-learn \cite{sklearn}, así que se ajusta solo con los datos de entrenamiento de cada \textit{fold}. Las tres decisiones del modelo (algoritmo, hiperparámetros y umbral de decisión) se toman exclusivamente con \texttt{StratifiedKFold(5)} sobre el 80\,\% de entrenamiento. El 20\,\% de test se usa una única vez, para medir. Los intervalos de confianza del 95\,\% se calculan con \textit{bootstrap} de 1,000 remuestreos del test (percentiles). Las diferencias entre modelos se evalúan con \textit{bootstrap} pareado, es decir, ambos modelos sobre los mismos remuestreos.
 
-\subsection{Modelos Comparados}
+\subsection{Selección y justificación del algoritmo}
+Se compararon cinco modelos con ROC-AUC como métrica, porque es independiente del umbral y robusta al desbalance. A todos se les aplicó corrección de desbalance (\texttt{class\_weight} o \texttt{scale\_pos\_weight}).
+
 \begin{table}[H]
+\centering\small
+\caption{Comparación de modelos base (ROC-AUC, validación cruzada 5-fold sobre train)}
+\begin{tabular}{lcc@{\hspace{1cm}}lcc}
+\toprule
+Modelo & Media & Desv. & Modelo & Media & Desv. \\
+\midrule
+Regresión logística & 0.930 & 0.005 & XGBoost & 0.980 & 0.003 \\
+Random Forest (300 árboles) & 0.976 & 0.004 & \textbf{LightGBM} & \textbf{0.980} & \textbf{0.003} \\
+HistGradientBoosting & 0.979 & 0.004 & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Los métodos de \textbf{\textit{gradient boosting} de árboles} (XGBoost \cite{xgboost}, LightGBM \cite{lightgbm}) superan claramente al modelo lineal (+0.05 de AUC). Esto confirma que la frontera de decisión es no lineal, y la elección se apoya en las características del problema:
+
+\textit{Fortalezas.}
+\begin{enumerate*}[label=(\roman*)]
+\item Los árboles son invariantes a transformaciones monótonas, algo útil porque el período va de horas a cientos de días y la profundidad abarca cuatro órdenes de magnitud.
+\item Capturan interacciones físicas sin especificarlas, por ejemplo profundidad $\times$ radio estelar $\rightarrow$ radio planetario. Un objeto con $R_p>15\,R_\oplus$ casi siempre es una binaria eclipsante.
+\item Tienen regularización explícita (profundidad, número de hojas, \textit{subsampling}).
+\item Ofrecen importancias de variables interpretables.
+\end{enumerate*}
+
+\textit{Limitaciones.}
+\begin{enumerate*}[label=(\roman*)]
+\item Sus probabilidades no están calibradas por defecto.
+\item Tienen más hiperparámetros y menor interpretabilidad global que un modelo lineal.
+\item No extrapolan fuera del rango de entrenamiento, lo que importa al transferir el modelo a otra misión.
+\end{enumerate*}
+
+Se optimizaron XGBoost y LightGBM con \texttt{GridSearchCV} (72 combinaciones cada uno: número de árboles $\{200,400\}$, profundidad $\{4,6,8\}$ u hojas $\{15,31,63\}$, \textit{learning rate} $\{0.03,0.1\}$, \textit{subsample} $\{0.8,1.0\}$ y $k$). Se seleccionó \textbf{LightGBM}, con AUC-CV 0.982 (400 árboles, \texttt{num\_leaves=63}, \texttt{learning\_rate=0.03}, \texttt{subsample=0.8}, las 19 variables tras el \textit{one-hot}), frente a 0.981 de XGBoost. Como se muestra en la Sección~5.1, esa diferencia no es estadísticamente significativa.
+
+\subsection{Umbral de decisión operativo}
+Para el uso operativo interesa recuperar al menos el 95\,\% de los planetas. El umbral se eligió con predicciones \textit{out-of-fold} del entrenamiento (\texttt{cross\_val\_predict}), en las que cada KOI de train recibe la probabilidad de un modelo que no lo vio. El umbral más alto con recall \textit{out-of-fold} $\geq0.95$ es \textbf{$P\geq0.309$}, y con él se señala el 39.4\,\% de los KOIs de entrenamiento. El test no interviene en esta elección.
+
+%=====================================================================
+\section{Desarrollo técnico e implementación}
+La solución está en el notebook \texttt{exoplanet\_classification.ipynb} (Python 3.12, pandas, scikit-learn 1.9, XGBoost 3.4, LightGBM 4.7, matplotlib/seaborn). Tiene 15 secciones comentadas que siguen el ciclo completo: carga, limpieza, \textit{split}, comparación de modelos, búsqueda de hiperparámetros, elección de umbral, evaluación con \textit{bootstrap}, interpretabilidad, experimentos de leakage, errores, curvas de aprendizaje y uso operativo. La arquitectura del modelo es:
+
+\begin{center}\small
+\texttt{ColumnTransformer}[num: \texttt{SimpleImputer(median)}$\rightarrow$\texttt{StandardScaler} $\mid$ cat: \texttt{SimpleImputer(mode)}$\rightarrow$\texttt{OneHotEncoder}]\\
+$\rightarrow$ \texttt{SelectKBest(mutual\_info, k)} $\rightarrow$ \texttt{LGBMClassifier(class\_weight='balanced', ...)}
+\end{center}
+
+La semilla está fijada en 42 en todos los componentes, incluidos la información mutua, que es estocástica, y el \textit{bootstrap}. La ejecución completa tarda unos 2 minutos en CPU. El notebook guarda el pipeline entrenado (\texttt{.pkl}), todas las métricas (\texttt{results.json}) y las figuras de este informe, por lo que cada cifra aquí reportada es reproducible.
+
+%=====================================================================
+\section{Resultados y análisis crítico}
+\subsection{Desempeño en el conjunto de test (n = 1,518)}
+
+\begin{figure}[H]
 \centering
-\caption{Modelos base evaluados con CV 5-fold (ROC-AUC)}
+\begin{minipage}[c]{0.52\linewidth}
+\centering\small
+\captionof{table}{Métricas en test (umbral 0.5)}
+\setlength{\tabcolsep}{5pt}
 \begin{tabular}{lcc}
 \toprule
-Modelo & ROC-AUC CV & $\pm$ Std \\
+Métrica & Valor & IC 95\,\% \\
 \midrule
-Logistic Regression (balanced) & 0.892 & 0.008 \\
-Random Forest (300 trees) & 0.941 & 0.006 \\
-HistGradientBoosting & 0.953 & 0.005 \\
-\textbf{XGBoost} & \textbf{0.964} & \textbf{0.004} \\
-LightGBM & 0.962 & 0.004 \\
+ROC-AUC & \textbf{0.979} & [0.973, 0.985] \\
+PR-AUC (\textit{baseline} 0.362) & \textbf{0.960} & [0.945, 0.972] \\
+Balanced accuracy & 0.929 & [0.915, 0.942] \\
+Accuracy & 0.932 & [0.918, 0.944] \\
+Precision (CONFIRMED) & 0.894 & [0.864, 0.920] \\
+Recall (CONFIRMED) & 0.920 & [0.898, 0.942] \\
+F1 (CONFIRMED) & 0.907 & [0.887, 0.924] \\
+Especificidad & 0.938 & [0.922, 0.953] \\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{minipage}\hfill
+\begin{minipage}[c]{0.36\linewidth}
+\centering
+\includegraphics[width=\linewidth]{fig_confusion.png}
+\captionof{figure}{Matriz de confusión en test.}
+\end{minipage}
+\end{figure}
 
-XGBoost y LightGBM superan consistentemente a RF y lineales. Se optimizan ambos vía \texttt{GridSearchCV}.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\linewidth]{fig_roc_pr.png}
+\caption{Curvas ROC y Precision-Recall en test. La PR-AUC (0.960) está muy por encima de la proporción de planetas (0.362).}
+\end{figure}
 
-\subsection{Optimización de Hiperparámetros (XGBoost)}
-\begin{verbatim}
-param_grid = {
-    'n_estimators': [200, 400],
-    'max_depth': [4, 6, 8],
-    'learning_rate': [0.03, 0.1],
-    'subsample': [0.8, 1.0],
-    'colsample_bytree': [0.8, 1.0],
-    'select__k': [20, 30]
-}
-\end{verbatim}
-\textbf{Mejor configuración}: \texttt{n\_estimators=400, max\_depth=6, learning\_rate=0.03, subsample=0.8, colsample\_bytree=0.8, k=25}. CV ROC-AUC = \textbf{0.964}.
+Las métricas son coherentes con la matriz: $P=506/566=0.894$ y $R=506/550=0.920$. El modelo pierde 44 de 550 planetas y acepta 60 de 968 falsos positivos. Como la prevalencia es del 36\,\%, la accuracy sola sería engañosa. Por eso se priorizan la PR-AUC, el recall de la clase CONFIRMED y la balanced accuracy. En test, XGBoost obtiene un AUC de 0.980 y LightGBM de 0.979. La diferencia pareada es $-0.0004$ \ci{-0.0019}{+0.0012}, y como el intervalo contiene el cero, ambos algoritmos son \textbf{estadísticamente indistinguibles}.
 
-\section{Desarrollo Técnico e Implementación}
+\subsection{Interpretabilidad}
+En el modelo final, las variables más importantes (ganancia) son el radio planetario (0.20), la SNR del tránsito (0.13), el período (0.12), la duración (0.08), el parámetro de impacto (0.08) y la profundidad (0.06) (Fig.~\ref{fig:imp}, derecha). Este orden coincide con la física de los falsos positivos. Un radio inferido mayor que $\sim$15\,$R_\oplus$ delata una estrella compañera. Un parámetro de impacto alto con tránsito en forma de V es típico de las binarias rasantes. Una SNR baja aumenta la probabilidad de que la señal sea ruido o variabilidad estelar.
 
-El pipeline completo se implementa en \textbf{Python 3.11} con \texttt{scikit-learn}, \texttt{XGBoost}, \texttt{LightGBM}, \texttt{pandas}, \texttt{matplotlib/seaborn}. Código modular, comentado, reproducible (semilla 42). Entregable: \texttt{exoplanet\_classification.ipynb} + \texttt{exoplanet\_classifier\_pipeline.pkl}.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\linewidth]{fig_importance_compare.png}
+\caption{Importancia relativa (gain) de las 10 variables principales. Izquierda: experimento con columnas de incertidumbre (en rojo); derecha: modelo final.}\label{fig:imp}
+\end{figure}
 
-\subsection{Arquitectura del Pipeline}
-\begin{verbatim}
-Pipeline(steps=[
-    ('preprocessor', ColumnTransformer(
-        num: SimpleImputer(median) -> StandardScaler(),
-        cat: SimpleImputer(most_frequent) -> OneHotEncoder()
-    )),
-    ('select', SelectKBest(mutual_info_classif, k=25)),
-    ('model', XGBClassifier(
-        n_estimators=400, max_depth=6, learning_rate=0.03,
-        subsample=0.8, colsample_bytree=0.8,
-        random_state=42, n_jobs=-1
-    ))
-])
-\end{verbatim}
-
-\subsection{Entrenamiento}
+\subsection{Experimentos de \textit{leakage}}
+Se reentrenó el modelo final, con los mismos hiperparámetros, agregando las columnas excluidas:
 \begin{itemize}
-    \item Tiempo total (CV + GridSearch + fit final): $\sim$3 min en CPU (8 cores).
-    \item Memoria: $<2$ GB.
-    \item Sin \textit{early stopping} en CV (usar \texttt{StratifiedKFold} fijo garantiza comparabilidad).
+\item \textbf{Con las 20 columnas \texttt{\_err} utilizables:} el AUC sube a 0.987 \ci{0.983}{0.991}. La diferencia pareada es $+0.008$ \ci{+0.005}{+0.011}: \textbf{real, pero pequeña}. Además, las barras de error pasan a dominar el ranking (\texttt{koi\_steff\_err1} es la primera variable, Fig.~\ref{fig:imp}, izquierda). Esa ganancia no proviene de la física, sino de información sobre el seguimiento ya realizado, que no existirá para un candidato nuevo. Renunciar a 0.008 de AUC a cambio de un modelo válido para su uso real es la decisión correcta.
+\item \textbf{Con \texttt{koi\_score} y \texttt{koi\_fpflag\_*}:} el AUC sube a \textbf{1.000}, e incluso \texttt{koi\_score} por sí solo, sin modelo, alcanza 0.981. Esas columnas son la decisión del catálogo con otro nombre.
 \end{itemize}
 
-\section{Resultados y Análisis Crítico}
-
-\subsection{Métricas en Test Set (Hold-out)}
-
-\begin{table}[H]
-\centering
-\caption{Rendimiento final del modelo optimizado (XGBoost)}
-\begin{tabular}{lcc}
-\toprule
-Métrica & Valor & Interpretación \\
-\midrule
-ROC-AUC & \textbf{0.967} & Excelente separación de clases \\
-PR-AUC (Average Precision) & \textbf{0.931} & Alta precisión en clase minoritaria \\
-Balanced Accuracy & \textbf{0.902} & Robusto al desbalance 1:2.2 \\
-Accuracy & 0.938 & Referencia (sesgada por clase mayoritaria) \\
-Precision (CONFIRMED) & 0.891 & De los predichos planeta, 89\% lo son \\
-Recall (CONFIRMED) & 0.873 & Se recupera 87\% de planetas reales \\
-F1-score (CONFIRMED) & 0.882 & Balance precisión-recall \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.85\linewidth}{\centering \textit{[Figura 1: Matriz de confusión — TN=4412, FP=213, FN=189, TP=1297]}}}
-\caption{Matriz de confusión en test set. Solo 189 planetas reales perdidos (FN) y 213 falsos positivos aceptados (FP).}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.85\linewidth}{\centering \textit{[Figura 2: Curvas ROC (AUC=0.967) y Precision-Recall (AP=0.931)]}}}
-\caption{Curvas ROC y PR. La curva PR es crítica por desbalance: baseline aleatorio = 0.313 (proporción CONFIRMED).}
-\end{figure}
-
-\subsection{Importancia de Features (Top 10)}
-
-\begin{table}[H]
-\centering
-\caption{Features más importantes (Gini importance, XGBoost)}
-\begin{tabular}{lrr}
-\toprule
-Feature & Importance & Interpretación Física \\
-\midrule
-koi\_score & 0.342 & Score experto pipeline Kepler (proxy conocimiento) \\
-koi\_depth & 0.187 & Profundidad tránsito $\propto (R_p/R_*)^2$ \\
-koi\_period & 0.124 & Período orbital (ley de Kepler) \\
-koi\_duration & 0.098 & Duración tránsito (geometría) \\
-koi\_prad & 0.071 & Radio planetario estimado \\
-koi\_steff & 0.053 & Temperatura estelar (tipo espectral) \\
-koi\_slogg & 0.041 & Gravedad superficial estelar \\
-koi\_srad & 0.032 & Radio estelar \\
-koi\_model\_snr & 0.028 & SNR modelo tránsito \\
-koi\_insol & 0.024 & Flujo incidente (zona habitabilidad) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Hallazgo clave}: \texttt{koi\_score} domina — valida que la pipeline experta de NASA codifica señal real. Las features físicas (profundidad, período, duración) siguen en orden teórico esperado.
-
-\subsection{Análisis de Errores}
-
+\subsection{Análisis de errores y sesgos}
 \begin{itemize}
-    \item \textbf{Falsos Negativos (189)}: Planetas reales clasificados como FP. Tienen \texttt{koi\_score} bajo ($<0.3$), períodos largos ($>100$ d), tránsitos someros ($<100$ ppm), estrellas tenues ($K_p>15$). \textit{Sesgo por magnitud}: fotometría ruidosa $\rightarrow$ features poco confiables.
-    \item \textbf{Falsos Positivos (213)}: Ruido/binarias clasificados como planeta. \texttt{koi\_score} alto ($>0.7$) pero flags FP ocultos (binarias de fondo no resueltas). El modelo aprende proxies de \texttt{koi\_score} pero no accede a flags directos.
+\item \textbf{Relación señal-ruido.} Es el factor dominante. El recall de planetas es 0.93--0.95 con SNR $>20$, baja a 0.89 con SNR entre 10 y 20, y a 0.44 con SNR $<10$ (aunque este último grupo solo tiene 9 planetas en test). Los falsos negativos tienen una mediana de SNR de 21, frente a 32 en los verdaderos positivos.
+\item \textbf{Planetas pequeños.} Tanto los FN como los FP son objetos pequeños (mediana de 1.7\,$R_\oplus$) y de tránsito somero (300\,ppm), una región donde planetas reales e impostores se parecen físicamente. Los FP descartados correctamente tienen una mediana de 16\,$R_\oplus$: son binarias evidentes. Hay, por tanto, un \textbf{sesgo hacia planetas grandes y de alta SNR}: los análogos terrestres, los más interesantes científicamente, son los peor clasificados.
+\item \textbf{Magnitud estelar.} Su efecto es despreciable: el recall va de 0.91 a 0.93 en todos los rangos de $K_p$, así que la SNR, y no el brillo de la estrella, explica los errores.
+\item \textbf{Sesgo de selección en las etiquetas.} Los KOIs confirmados son los que fue factible observar. El modelo hereda ese sesgo, y su desempeño sobre los \texttt{CANDIDATE} restantes, más difíciles por construcción, probablemente sea menor que el medido en test.
+\item \textbf{Sobreajuste.} Las curvas de aprendizaje muestran un AUC de entrenamiento de 1.000 frente a 0.982 en validación (brecha de 0.018). La curva de validación aún crece con más datos, lo que indica varianza moderada y que más ejemplos etiquetados seguirían ayudando.
 \end{itemize}
 
-\subsection{Curvas de Aprendizaje}
-\begin{figure}[H]
-\centering
-\fbox{\parbox{0.85\linewidth}{\centering \textit{[Figura 3: Curvas de aprendizaje — Train ROC-AUC 0.985, Val ROC-AUC 0.964, gap 0.021]}}}
-\caption{Curvas de aprendizaje. Gap train-val $\approx 0.02$ indica \textbf{ligero overfitting} controlado; más datos reducirían brecha. No hay \textit{underfitting}.}
-\end{figure}
+\subsection{Uso operativo}
+Aplicado al test, el umbral elegido \textit{out-of-fold} ($P\geq0.309$) recupera el \textbf{94.0\,\%} \ci{91.9}{95.9} de los planetas, con una precisión de 0.867 \ci{0.838}{0.893}, y solo señala el \textbf{39.3\,\%} \ci{36.9}{41.8} de los KOIs para seguimiento. Eso supone un \textbf{ahorro aproximado del 61\,\%} de tiempo de telescopio frente a observar todos. El recall en test (94\,\%) queda ligeramente por debajo del objetivo del 95\,\%, como era de esperar al aplicar a datos nuevos un umbral fijado de antemano, pero el objetivo cae dentro del intervalo de confianza. Aplicado a los 1,977 \texttt{CANDIDATE}, el modelo señala 747 para seguimiento, de los cuales 200 tienen $P>0.98$.
 
-\subsection{Predicción sobre Candidatos (CANDIDATE)}
-El modelo clasifica 2,012 KOIs con etiqueta intermedia. Top 10 con $P(\texttt{CONFIRMED}) > 0.98$ incluyen candidatos en zona de habitabilidad (\texttt{koi\_insol} $\approx 1$). Estos son \textbf{objetivos prioritarios para seguimiento espectroscópico}.
-
-\section{Limitaciones, Sesgos y Mejora Futura}
-
-\subsection{Limitaciones Identificadas}
+%=====================================================================
+\section{Limitaciones y propuestas de mejora}
 \begin{enumerate}
-    \item \textbf{\textit{Data leakage} residual}: \texttt{koi\_score} correlaciona con flags FP eliminados. Modelo aprende proxies. Mitigación: entrenar \textit{sans} \texttt{koi\_score} (ROC-AUC cae a 0.921 — trade-off interpretabilidad vs rendimiento).
-    \item \textbf{Sesgo por magnitud estelar}: Estrellas $K_p > 15$ (tenues) tienen fotometría ruidosa $\rightarrow$ mayor tasa FN. Solución: \textit{stratified sampling} por magnitud o \textit{weighting} inverso a ruido.
-    \item \textbf{Generalización temporal}: Kepler K2 (campañas 0--19) tiene sistemáticos distintos (deriva térmica, \textit{thruster firings}). Requiere \textit{domain adaptation} o re-entrenamiento.
-    \item \textbf{Clase CANDIDATE excluida}: Casos frontera con incertidumbre alta. \textit{Active learning} iterativo (predicción $\rightarrow$ validación experta $\rightarrow$ re-entrenamiento) reduciría región de duda.
+\item \textbf{Leakage residual posible:} \texttt{koi\_prad}, \texttt{koi\_srad} y \texttt{koi\_slogg} se derivan de parámetros estelares que también pueden refinarse tras la confirmación. Para descartarlo, habría que entrenar con los valores de una versión congelada del catálogo, por ejemplo el DR25 \cite{thompson2018}, anterior a la confirmación de cada objeto.
+\item \textbf{Calibración de probabilidades} (\texttt{CalibratedClassifierCV}, isotónica) para que $P(\text{CONFIRMED})$ pueda usarse directamente en decisiones de costo-beneficio de tiempo de telescopio.
+\item \textbf{Mejorar el desempeño en baja SNR y radios pequeños:} ponderar ejemplos por SNR, entrenar con las curvas de luz crudas mediante CNN 1D (que capturan la forma del tránsito, el ingreso/egreso y los eclipses secundarios) y explicar cada predicción con SHAP.
+\item \textbf{Generalización:} validar en K2 y TESS, que tienen sistemáticos instrumentales distintos, con \textit{domain adaptation} o \textit{fine-tuning}. Usar \textit{active learning} para incorporar progresivamente los candidatos que se vayan resolviendo.
 \end{enumerate}
 
-\subsection{Propuestas de Mejora (Roadmap)}
-\begin{enumerate}
-    \item \textbf{Ensemble Stacking}: XGBoost + LightGBM + MLP (meta-learner LR) $\rightarrow$ +1--2\% ROC-AUC.
-    \item \textbf{Time-series raw}: Curvas de luz brutas (PDC-SAP) con CNN 1D / LSTM / Transformer. Captura morfología de tránsito (ingreso/egreso, asimetrías) no resumida en features agregadas.
-    \item \textbf{Calibración de probabilidades}: \texttt{CalibratedClassifierCV} (isotonic) para que $P(y=1|x)$ sea confiable (crítico para toma de decisión de tiempo de telescopio).
-    \item \textbf{Transfer Learning a TESS}: Pre-entrenar en Kepler, \textit{fine-tune} en TESS (sectores 1--55, $\sim$5,000 TOIs). Mismo problema físico, instrumentación distinta.
-    \item \textbf{Explainability avanzada}: SHAP values por muestra para justificar cada predicción a astrónomos (requisito operacional en observatorios).
-\end{enumerate}
-
+%=====================================================================
 \section{Conclusiones}
-
 \begin{enumerate}
-    \item Se desarrolló un pipeline de \textbf{clasificación binaria supervisada} que discrimina exoplanetas confirmados vs falsos positivos en el catálogo Kepler con \textbf{ROC-AUC = 0.967} (test hold-out).
-    \item El modelo \textbf{XGBoost optimizado} (400 árboles, depth=6, lr=0.03) supera a RF, GBM nativo y modelos lineales, validado con CV estratificada 5-fold y \textit{GridSearchCV}.
-    \item Las features dominantes (\texttt{koi\_score}, profundidad, período, duración) se alinean con \textbf{física de tránsitos}, confiriendo credibilidad científica al modelo.
-    \item El clasificador permite \textbf{priorizar 2,012 candidatos CANDIDATE}, identificando $\sim$50 objetivos de alta confianza ($P>0.98$) para seguimiento espectroscópico inmediato.
-    \item Se documentaron \textbf{sesgos críticos} (magnitud estelar, \textit{leakage} residual, generalización K2/TESS) y se propuso hoja de ruta técnica para mitigarlos.
+\item Se formuló la priorización de KOIs de Kepler como una clasificación binaria supervisada y se implementó un pipeline reproducible en el que todas las decisiones se tomaron sin usar el test. El modelo final alcanza \textbf{ROC-AUC 0.979} \ci{0.973}{0.985}, \textbf{PR-AUC 0.960} y \textbf{F1 0.907} en test.
+\item El \textit{gradient boosting} superó claramente a la regresión logística (+0.05 de AUC), lo que confirma la naturaleza no lineal del problema. Entre LightGBM y XGBoost no hay diferencia significativa.
+\item El control de leakage fue decisivo. Las variables de vetting llevan el AUC a 1.0 de forma espuria, y las barras de error aportan +0.008 de AUC que solo reflejan el seguimiento ya realizado. Sin ellas, el modelo se apoya en variables físicas: radio, SNR, período, duración y parámetro de impacto.
+\item El principal punto débil son los planetas pequeños de baja SNR, que son precisamente los de mayor interés científico. Se propusieron mejoras concretas para ese caso.
+\item En la práctica, el clasificador permite observar solo el $\sim$39\,\% de los KOIs (un ahorro de $\sim$61\,\%) recuperando el 94\,\% de los planetas, y entrega una lista priorizada de candidatos.
 \end{enumerate}
 
-\textbf{Impacto operativo}: Automatizar la triage reduce $\sim$80\% el tiempo de telescopio grande requerido para validación, acelerando el descubrimiento de mundos potencialmente habitables. El pipeline es reproducible, versionado y desplegable como servicio (\texttt{.pkl} + API Flask/FastAPI).
+\noindent\textbf{Código y notebook:} \url{https://github.com/Cha0smagick/Trabajo-unidad-IVmaestria-inteligencia-artificial-exoplanetas}
 
-\vspace{0.5cm}
-\noindent\textbf{Repositorio}: \url{https://github.com/usuario/kepler-exoplanet-ml} (código, notebook, modelo, datos).
-
-\begin{thebibliography}{9}
-\bibitem{borucki2010} Borucki, W.J. et al. (2010). \textit{Kepler Planet-Detection Mission: Introduction and First Results}. Science, 327(5968), 977--980.
-\bibitem{thompson2018} Thompson, S.E. et al. (2018). \textit{Planetary Candidates Observed by Kepler. VIII. A Fully Automated Catalog}. ApJS, 235(2), 38.
-\bibitem{chen2016} Chen, T. \& Guestrin, C. (2016). \textit{XGBoost: A Scalable Tree Boosting System}. KDD, 785--794.
-\bibitem{ke2017} Ke, G. et al. (2017). \textit{LightGBM: A Highly Efficient Gradient Boosting Decision Tree}. NIPS, 3146--3154.
-\bibitem{pedregosa2011} Pedregosa, F. et al. (2011). \textit{Scikit-learn: Machine Learning in Python}. JMLR, 12, 2825--2830.
-\bibitem{nasa2024} NASA Exoplanet Archive (2024). \textit{Kepler Cumulative Table}. \url{https://exoplanetarchive.ipac.caltech.edu/}
-\end{thebibliography}
+\vspace{-4pt}
+{\small
+\begin{thebibliography}{9}\setlength{\itemsep}{0pt}
+\bibitem{borucki2010} Borucki, W.\,J. et al. (2010). Kepler Planet-Detection Mission: Introduction and First Results. \textit{Science}, 327(5968), 977--980.
+\bibitem{thompson2018} Thompson, S.\,E. et al. (2018). Planetary Candidates Observed by Kepler. VIII. A Fully Automated Catalog. \textit{ApJS}, 235(2), 38.
+\bibitem{xgboost} Chen, T. \& Guestrin, C. (2016). XGBoost: A Scalable Tree Boosting System. \textit{Proc. KDD}, 785--794.
+\bibitem{lightgbm} Ke, G. et al. (2017). LightGBM: A Highly Efficient Gradient Boosting Decision Tree. \textit{NeurIPS}, 3146--3154.
+\bibitem{sklearn} Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. \textit{JMLR}, 12, 2825--2830.
+\bibitem{nasa} NASA Exoplanet Archive. Kepler Objects of Interest — Cumulative Table. \url{https://exoplanetarchive.ipac.caltech.edu/} (consultado el 7 de noviembre de 2026).
+\end{thebibliography}}
 
 \end{document}
